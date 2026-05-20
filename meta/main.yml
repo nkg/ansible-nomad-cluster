@@ -1,0 +1,23 @@
+---
+galaxy_info:
+  role_name: nomad_cluster
+  author: nkg
+  description: |
+    Bootstraps a Nomad cluster — installs binary (skips when a
+    pre-baked version is present at the correct version), drops
+    /etc/nomad.d/nomad.hcl + systemd unit, joins servers + clients,
+    registers the podman driver on clients. Single-distro target
+    (Debian 13 trixie) to match nkg/distrobuilder-proxmox-lxc-images.
+  license: MIT
+  min_ansible_version: "2.16"
+  platforms:
+    - name: Debian
+      versions:
+        - trixie
+  galaxy_tags:
+    - nomad
+    - hashicorp
+    - cluster
+    - podman
+
+dependencies: []

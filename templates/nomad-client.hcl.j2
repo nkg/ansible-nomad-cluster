@@ -1,0 +1,57 @@
+# {{ ansible_managed }}
+# Nomad client configuration for {{ inventory_hostname }}.
+
+datacenter = "{{ nomad_datacenter }}"
+region     = "{{ nomad_region }}"
+data_dir   = "{{ nomad_data_dir }}"
+log_level  = "{{ nomad_log_level }}"
+
+bind_addr = "{{ nomad_bind_addr }}"
+
+advertise {
+  http = "{{ nomad_advertise_addr }}"
+  rpc  = "{{ nomad_advertise_addr }}"
+  serf = "{{ nomad_advertise_addr }}"
+}
+
+ports {
+  http = {{ nomad_http_port }}
+  rpc  = {{ nomad_rpc_port }}
+  serf = {{ nomad_serf_port }}
+}
+
+client {
+  enabled = true
+  servers = {{ nomad_servers | to_json }}
+}
+
+plugin_dir = "{{ nomad_plugin_dir }}"
+
+plugin "nomad-driver-podman" {
+  config {
+    socket_path = "{{ nomad_podman_socket }}"
+
+    # Reclaim image storage between jobs — runners spawn fresh
+    # containers per workflow_job, accumulating untagged layers
+    # otherwise.
+    gc {
+      container = true
+    }
+
+    recover_stopped = false
+  }
+}
+
+{% if nomad_enable_raw_exec %}
+plugin "raw_exec" {
+  config {
+    enabled = true
+  }
+}
+{% endif %}
+
+{% if nomad_enable_acl %}
+acl {
+  enabled = true
+}
+{% endif %}

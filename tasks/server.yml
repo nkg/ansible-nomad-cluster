@@ -1,0 +1,11 @@
+---
+# Server-specific configuration. Runs after common.yml.
+
+- name: Render nomad server config
+  ansible.builtin.template:
+    src: nomad-server.hcl.j2
+    dest: "{{ nomad_config_dir }}/nomad.hcl"
+    owner: root
+    group: "{{ nomad_group }}"
+    mode: "0640"
+  notify: Restart nomad

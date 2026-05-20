@@ -1,0 +1,30 @@
+---
+# Example playbook — three servers + N clients in a single
+# datacenter. Operators clone this and adjust the inventory.
+
+- name: Provision Nomad servers
+  hosts: nomad_servers
+  become: true
+  vars:
+    nomad_role: server
+    # Every node — server or client — gets the full server list so
+    # retry_join and `servers =` lines render identically.
+    nomad_servers:
+      - "192.168.1.121"
+      - "192.168.1.122"
+      - "192.168.1.123"
+    nomad_server_bootstrap_expect: 3
+  roles:
+    - nomad_cluster
+
+- name: Provision Nomad clients
+  hosts: nomad_clients
+  become: true
+  vars:
+    nomad_role: client
+    nomad_servers:
+      - "192.168.1.121"
+      - "192.168.1.122"
+      - "192.168.1.123"
+  roles:
+    - nomad_cluster

@@ -1,0 +1,17 @@
+# Ansible runtime
+*.retry
+*.pyc
+__pycache__/
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+
+# OS junk
+.DS_Store
+
+# Local test fixtures
+.molecule/
+roles/
+collections/

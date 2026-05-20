@@ -1,0 +1,32 @@
+---
+# ansible-lint is intentionally NOT a pre-commit hook — it's
+# pip-installed (not mise-pinned), and a missing install would
+# break every commit for someone who hasn't bootstrapped fully.
+# CI runs it on every push / PR.
+
+glob_matcher: doublestar
+
+pre-commit:
+  parallel: true
+  commands:
+    yamllint:
+      glob: "**/*.{yml,yaml}"
+      run: yamllint {staged_files}
+
+pre-push:
+  commands:
+    no-push-to-main:
+      run: |
+        branch=$(git rev-parse --abbrev-ref HEAD)
+        if [ "$branch" = "main" ]; then
+          echo "Direct push to main is not allowed. Use a branch and PR."
+          exit 1
+        fi
+        if [ -s "$LEFTHOOK_STDIN" ]; then
+          while read -r local_ref local_sha remote_ref remote_sha; do
+            if echo "$remote_ref" | grep -qE '^refs/heads/main$'; then
+              echo "Direct push to main is not allowed. Use a branch and PR."
+              exit 1
+            fi
+          done < "$LEFTHOOK_STDIN"
+        fi

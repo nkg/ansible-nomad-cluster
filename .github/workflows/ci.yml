@@ -1,0 +1,84 @@
+---
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  yamllint:
+    name: yamllint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - run: |
+          pip install yamllint
+          yamllint -c .yamllint.yml .
+
+  ansible-lint:
+    name: ansible-lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: |
+          pip install 'ansible-core>=2.16' 'ansible-lint>=25.0'
+          ansible-lint --offline
+
+  syntax-check:
+    name: ansible-playbook --syntax-check
+    runs-on: ubuntu-latest
+    needs: [yamllint, ansible-lint]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install 'ansible-core>=2.16'
+      - name: Stage role at expected path
+        # Ansible expects a role to live under roles/<name>/. Stage
+        # this repo into that layout so the example playbook can
+        # resolve `roles: [nomad_cluster]` without an extra config.
+        run: |
+          mkdir -p staging/roles
+          ln -s "${PWD}" staging/roles/nomad_cluster
+      - name: Syntax-check the example playbook
+        working-directory: staging
+        run: |
+          ANSIBLE_ROLES_PATH=./roles ansible-playbook \
+            ../examples/site.yml \
+            -i ../examples/inventory.example.ini \
+            --syntax-check
+
+  pr-title:
+    name: PR title is conventional
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    steps:
+      - uses: amannn/action-semantic-pull-request@v6
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            chore
+            ci
+            docs
+            test
+            refactor
+            perf
+          requireScope: false

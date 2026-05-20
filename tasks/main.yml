@@ -1,0 +1,30 @@
+---
+# Role dispatcher. Keep this file tiny; the per-role specifics live
+# in common.yml / server.yml / client.yml.
+
+- name: Validate role variables
+  ansible.builtin.assert:
+    that:
+      - nomad_role in ['server', 'client', 'both']
+      - nomad_servers | length > 0
+    fail_msg: >-
+      `nomad_role` must be one of server|client|both and
+      `nomad_servers` must contain at least one host.
+
+- name: Common setup (user, dirs, binary)
+  ansible.builtin.include_tasks: common.yml
+
+- name: Server configuration
+  ansible.builtin.include_tasks: server.yml
+  when: nomad_role in ['server', 'both']
+
+- name: Client configuration
+  ansible.builtin.include_tasks: client.yml
+  when: nomad_role in ['client', 'both']
+
+- name: Enable and start nomad
+  ansible.builtin.systemd:
+    name: nomad
+    enabled: true
+    state: started
+    daemon_reload: true

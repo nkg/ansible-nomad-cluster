@@ -1,0 +1,44 @@
+---
+# Client-specific configuration. Runs after common.yml.
+
+- name: Check installed nomad-driver-podman version (if any)
+  ansible.builtin.command: "{{ nomad_plugin_dir }}/nomad-driver-podman -version"
+  register: nomad_podman_driver_version
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Install nomad-driver-podman
+  when: >-
+    nomad_podman_driver_version.rc != 0
+    or nomad_driver_podman_version not in (nomad_podman_driver_version.stdout | default(''))
+  block:
+    - name: Download nomad-driver-podman release zip
+      ansible.builtin.get_url:
+        url: "{{ nomad_driver_podman_url }}"
+        dest: "/tmp/nomad-driver-podman-{{ nomad_driver_podman_version }}.zip"
+        mode: "0644"
+
+    - name: Extract podman driver binary into plugin dir
+      ansible.builtin.unarchive:
+        src: "/tmp/nomad-driver-podman-{{ nomad_driver_podman_version }}.zip"
+        dest: "{{ nomad_plugin_dir }}"
+        remote_src: true
+        creates: "{{ nomad_plugin_dir }}/nomad-driver-podman"
+        owner: "{{ nomad_user }}"
+        group: "{{ nomad_group }}"
+        mode: "0755"
+
+    - name: Clean up downloaded zip
+      ansible.builtin.file:
+        path: "/tmp/nomad-driver-podman-{{ nomad_driver_podman_version }}.zip"
+        state: absent
+
+- name: Render nomad client config
+  ansible.builtin.template:
+    src: nomad-client.hcl.j2
+    dest: "{{ nomad_config_dir }}/nomad.hcl"
+    owner: root
+    group: "{{ nomad_group }}"
+    mode: "0640"
+  notify: Restart nomad

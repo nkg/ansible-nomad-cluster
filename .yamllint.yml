@@ -1,0 +1,23 @@
+---
+extends: default
+
+rules:
+  line-length:
+    # Bumped from 160 to fit the pinned HashiCorp release URLs in
+    # defaults/main.yml (~190 chars) without per-line noqa.
+    max: 200
+    level: warning
+  truthy:
+    check-keys: false
+  comments:
+    min-spaces-from-content: 1
+  # Aligned with ansible-lint's embedded yamllint check.
+  comments-indentation: false
+  octal-values:
+    forbid-implicit-octal: true
+    forbid-explicit-octal: true
+  indentation:
+    spaces: 2
+    indent-sequences: true
+  braces:
+    max-spaces-inside: 1

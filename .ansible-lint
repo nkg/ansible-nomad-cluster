@@ -1,0 +1,23 @@
+---
+# ansible-lint config. Strict default rules; opt-out via skip_list
+# only when the rule is genuinely wrong for our use case.
+
+skip_list:
+  # role-name: the role's directory is the repo root, which doesn't
+  # follow the standard underscores-only naming. Galaxy-publish later
+  # if we want strict naming.
+  - role-name
+
+  # meta-no-info: galaxy_info is optional for non-Galaxy roles. We
+  # add the minimum for documentation but don't enforce every field.
+  - meta-no-info
+
+exclude_paths:
+  - .github/
+  - .ansible/
+  - tests/
+  # examples/ uses `roles: [nomad_cluster]` which can't be resolved
+  # by ansible-lint without a roles/<name> directory at the same
+  # level. The dedicated `syntax-check` CI job stages a symlink and
+  # runs ansible-playbook --syntax-check from there.
+  - examples/

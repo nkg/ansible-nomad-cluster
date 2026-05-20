@@ -1,0 +1,75 @@
+---
+# ─── Role selector ───────────────────────────────────────────────────
+# What Nomad agent runs on this host:
+#   server  — Nomad server (joins quorum with other servers)
+#   client  — Nomad client (registers with servers, runs allocations)
+#   both    — same host runs both (small / dev clusters only)
+nomad_role: client
+
+# ─── Versioning ──────────────────────────────────────────────────────
+# Pinned Nomad version. The role checks /usr/local/bin/nomad first
+# and skips the download if the version matches. Matches the version
+# baked into nkg/distrobuilder-proxmox-lxc-images' nomad-client.tar.xz.
+nomad_version: "1.8.4"
+
+# Architecture of the target host. Override on arm64 hosts.
+nomad_arch: amd64
+
+# Download URL template. The role substitutes {{ nomad_version }} +
+# {{ nomad_arch }}. Override to use a mirror or air-gapped HTTP cache.
+nomad_download_url: "https://releases.hashicorp.com/nomad/{{ nomad_version }}/nomad_{{ nomad_version }}_linux_{{ nomad_arch }}.zip"
+
+# Nomad podman driver. Required on clients that run podman workloads.
+nomad_driver_podman_version: "0.6.2"
+nomad_driver_podman_url: "https://releases.hashicorp.com/nomad-driver-podman/{{ nomad_driver_podman_version }}/nomad-driver-podman_{{ nomad_driver_podman_version }}_linux_{{ nomad_arch }}.zip"
+
+# ─── Cluster topology ────────────────────────────────────────────────
+nomad_datacenter: dc1
+nomad_region: global
+
+# How many servers to wait for before electing a leader. Set to the
+# number of nodes that have `nomad_role: server` (3 is the canonical
+# quorum-friendly size).
+nomad_server_bootstrap_expect: 3
+
+# Addresses (IP or hostname:port) of every server in the cluster.
+# Both servers (for retry_join) and clients (for `servers` block)
+# read this list — give every host the same value.
+# REQUIRED — no sensible default, deployment-specific.
+nomad_servers: []
+
+# ─── Networking ──────────────────────────────────────────────────────
+nomad_bind_addr: "0.0.0.0"
+# Address other nodes use to reach this one. Default to the host's
+# primary IPv4 — override if the host has multiple NICs and a
+# specific one should carry Nomad traffic.
+nomad_advertise_addr: "{{ ansible_default_ipv4.address }}"
+
+nomad_http_port: 4646
+nomad_rpc_port: 4647
+nomad_serf_port: 4648
+
+# ─── Filesystem layout ───────────────────────────────────────────────
+nomad_user: nomad
+nomad_group: nomad
+nomad_data_dir: /var/lib/nomad
+nomad_config_dir: /etc/nomad.d
+nomad_install_dir: /usr/local/bin
+nomad_plugin_dir: /opt/nomad/plugins
+
+# ─── Client driver config ────────────────────────────────────────────
+# Path the podman driver uses to talk to the podman socket. Inside an
+# unprivileged LXC running rootless podman, this is the per-user
+# socket; for root podman it's /run/podman/podman.sock.
+nomad_podman_socket: "unix:///run/podman/podman.sock"
+
+# Whether to enable the raw_exec driver (runs arbitrary host binaries
+# without isolation). Useful for niche jobs; default off because it
+# expands the attack surface noticeably.
+nomad_enable_raw_exec: false
+
+# ─── Logging ─────────────────────────────────────────────────────────
+nomad_log_level: INFO
+
+# ─── ACLs (opt-in; not wired up in v0.1.0) ───────────────────────────
+nomad_enable_acl: false

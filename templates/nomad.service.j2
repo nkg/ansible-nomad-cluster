@@ -1,0 +1,42 @@
+# {{ ansible_managed }}
+# Upstream Nomad systemd unit, lightly adapted for the binary install
+# location used by this role.
+
+[Unit]
+Description=Nomad
+Documentation=https://www.nomadproject.io/docs/
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=notify
+EnvironmentFile=-/etc/nomad.d/nomad.env
+{% if nomad_role == 'client' %}
+# Client mode needs root for the podman / exec drivers to manage
+# allocations. Servers can drop to a dedicated user, but we keep
+# both modes uniform for now.
+User=root
+Group=root
+{% else %}
+User=root
+Group=root
+{% endif %}
+ExecReload=/bin/kill -HUP $MAINPID
+ExecStart={{ nomad_install_dir }}/nomad agent -config {{ nomad_config_dir }}
+KillMode=process
+KillSignal=SIGINT
+LimitNOFILE=65536
+LimitNPROC=infinity
+Restart=on-failure
+RestartSec=2
+
+# Failsafe rate-limit so a crashloop doesn't spin systemd into
+# CPU-bound restart attempts.
+StartLimitBurst=3
+StartLimitIntervalSec=10
+
+TasksMax=infinity
+OOMScoreAdjust=-1000
+
+[Install]
+WantedBy=multi-user.target

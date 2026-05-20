@@ -1,0 +1,13 @@
+# Pinned local toolchain. After cloning:
+#   mise install
+#   pip install 'ansible-core>=2.16' 'ansible-lint>=25.0' yamllint
+#   lefthook install
+
+[tools]
+python = "3.12"
+lefthook = "1"
+
+# Ansible-core + ansible-lint + yamllint are intentionally pip-installed
+# (not mise-pinned) — ansible-lint isn't in the mise registry, and
+# pinning ansible-core via pip lets the role test against the same
+# Ansible version CI uses.
