@@ -16,11 +16,16 @@ nomad_role: client
 # binary baked into the template. These drifted once (image 1.11.3 vs this
 # default 1.8.4); keep them in lockstep.
 #
-# 1.11.3 is the last community-edition 1.x release — 1.11.4+ ship as +ent only,
-# so the free 1.x line is frozen here and receives no further security patches.
-# The maintained free line is 2.0.x, blocked on nomad-driver-podman declaring
-# Nomad 2.0 support. See platform ADR-019.
-nomad_version: "1.11.3"
+# 2.0.x is the maintained community line. The 1.x community line ends at
+# 1.11.3 (1.11.4+ ship as +ent only), so staying there meant running a
+# version that receives no further security patches.
+#
+# nomad-driver-podman 0.6.5 declares no Nomad 2.0 support — see
+# "Choosing nomad_version" in the README for why this pairing is expected
+# to work and what to validate. Must equal the version baked into the
+# nomad-client LXC template; the install check is a string comparison, not
+# a floor, so a lower value here downgrades the pre-baked binary.
+nomad_version: "2.0.5"
 
 # Architecture of the target host. Override on arm64 hosts.
 nomad_arch: amd64
@@ -30,7 +35,9 @@ nomad_arch: amd64
 nomad_download_url: "https://releases.hashicorp.com/nomad/{{ nomad_version }}/nomad_{{ nomad_version }}_linux_{{ nomad_arch }}.zip"
 
 # Nomad podman driver. Required on clients that run podman workloads.
-# 0.6.5 (2026-07-13) is the latest release; it builds against Nomad 1.11.1.
+# 0.6.5 (2026-07-13) is the latest release; it builds against Nomad 1.11.1
+# and declares no 2.0 support. Paired with Nomad 2.0.5 deliberately — the
+# plugin interface is compatible; see the README.
 nomad_driver_podman_version: "0.6.5"
 nomad_driver_podman_url: "https://releases.hashicorp.com/nomad-driver-podman/{{ nomad_driver_podman_version }}/nomad-driver-podman_{{ nomad_driver_podman_version }}_linux_{{ nomad_arch }}.zip"
 

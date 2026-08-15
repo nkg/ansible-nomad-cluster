@@ -103,7 +103,7 @@ ones you'll typically set per deployment:
 | `nomad_servers` | `[]` (**required**) | Every server's IP/hostname. Both server `retry_join` and client `servers` read this. |
 | `nomad_server_bootstrap_expect` | `3` | Number of servers before the cluster elects a leader. |
 | `nomad_datacenter` | `dc1` | Logical DC name. Single-DC fleets keep the default. |
-| `nomad_version` | `1.11.3` | Pinned Nomad version. Skipped if `/usr/local/bin/nomad -v` already matches. Must equal the version baked into the `nomad-client` LXC image — a lower value here **downgrades** it. |
+| `nomad_version` | `2.0.5` | Pinned Nomad version. Skipped if `/usr/local/bin/nomad -v` already matches. Must equal the version baked into the `nomad-client` LXC image — a lower value here **downgrades** it. |
 | `nomad_driver_podman_version` | `0.6.5` | Pinned podman driver version. |
 | `nomad_advertise_addr` | `ansible_default_ipv4.address` | Address other nodes use to reach this one. Set explicitly on multi-NIC hosts. |
 | `nomad_podman_socket` | `unix:///run/podman/podman.sock` | Where the podman driver finds the podman API. |
@@ -124,17 +124,54 @@ HashiCorp's docs. Verified against `releases.hashicorp.com`, 2026-08-15:
 **1. The community 1.x line ends at 1.11.3.** Releases `1.11.4` through
 `1.11.9` are published **only** as `+ent` builds — the community
 `linux_amd64.zip` returns 404. So 1.11.3 is the newest freely-installable
-1.x and receives no further security patches. The maintained community line
-is 2.0.x.
+1.x, and it receives no further security patches. The maintained community
+line is 2.0.x.
 
 **2. `nomad-driver-podman` declares no Nomad 2.0 support.** The latest driver
 (0.6.5, 2026-07-13) builds against Nomad 1.11.1 and its changelog's
 `UNRELEASED` section is empty. On a podman-backed fleet the driver is the
 execution substrate, so it — not the server — sets the ceiling.
 
-The default is therefore **1.11.3**: the newest version this role can install
-for free that the driver is known-good against. If you don't need the podman
-driver, 2.0.x is the better choice and gets the patches.
+The default is **2.0.5**: staying on a line that gets no security patches is
+the worse of the two risks, and the driver's lack of a 2.0 *declaration*
+turns out not to mean incompatibility.
+
+### Why the 2.0.5 + driver 0.6.5 pairing is expected to work
+
+Established by source analysis against the upstream repos:
+
+- The plugin handshake — `ProtocolVersion`, `MagicCookieKey`,
+  `MagicCookieValue` in `plugins/base/plugin.go` — is **byte-identical**
+  across Nomad v1.11.1, v1.11.3 and v2.0.5. A driver built against 1.11.1
+  loads and handshakes with a 2.0.5 client.
+- `plugins/drivers/proto/driver.proto` changed **additively only** between
+  1.11.1 and 2.0.5: two new RPCs (`Init`, `Shutdown`), two new fields, four
+  new empty messages. No removals, no renumbering, no type changes.
+- Nomad 2.0.5 tolerates older drivers **by design**. Both new RPCs are
+  optional: `plugins/drivers/client.go` ignores `codes.Unimplemented` from
+  `Init`, and `Shutdown` logs *"driver plugin does not implement Shutdowner
+  interface"* at debug.
+
+### What that does not establish
+
+Interface compatibility is not runtime behaviour. One 2.0.x change is worth
+watching specifically:
+
+> **Nomad 2.0.1 made the allocation logs directory a read-only bind mount
+> for task drivers that support filesystem isolation.** The podman driver
+> supports it. If anything in the runner path writes into that directory it
+> breaks — at job runtime, not at driver load, so it will not show up as an
+> unhealthy driver.
+
+Validate on a throwaway client before trusting this with real jobs:
+[`Sproncy/GitHub-runners` → `docs/runbooks/nomad-2-spike.md`](https://github.com/sproncy/GitHub-runners/blob/main/docs/runbooks/nomad-2-spike.md)
+covers the full runner lifecycle (register → run → `--ephemeral --once`
+exit → dealloc) and checks that `nomad alloc logs` still returns output.
+
+**For servers:** Nomad 2.0 can migrate the Raft log store from BoltDB to
+WAL. That migration is effectively one-way — reverting needs a snapshot
+taken beforehand. It isn't exercised by a `-dev` agent, but it matters the
+first time real servers come up.
 
 ⚠️ **Keep `nomad_version` equal to the version baked into your LXC template.**
 The install check is a *string comparison*, not a floor — setting a lower
