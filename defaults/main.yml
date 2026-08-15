@@ -8,9 +8,19 @@ nomad_role: client
 
 # ─── Versioning ──────────────────────────────────────────────────────
 # Pinned Nomad version. The role checks /usr/local/bin/nomad first
-# and skips the download if the version matches. Matches the version
-# baked into nkg/distrobuilder-proxmox-lxc-images' nomad-client.tar.xz.
-nomad_version: "1.8.4"
+# and skips the download if the version matches.
+#
+# MUST match NOMAD_VERSION baked into nkg/distrobuilder-proxmox-lxc-images'
+# nomad-client image (images/nomad-client/image.yaml). The check above is a
+# string comparison, not a floor — a lower value here silently DOWNGRADES the
+# binary baked into the template. These drifted once (image 1.11.3 vs this
+# default 1.8.4); keep them in lockstep.
+#
+# 1.11.3 is the last community-edition 1.x release — 1.11.4+ ship as +ent only,
+# so the free 1.x line is frozen here and receives no further security patches.
+# The maintained free line is 2.0.x, blocked on nomad-driver-podman declaring
+# Nomad 2.0 support. See platform ADR-019.
+nomad_version: "1.11.3"
 
 # Architecture of the target host. Override on arm64 hosts.
 nomad_arch: amd64
@@ -20,7 +30,8 @@ nomad_arch: amd64
 nomad_download_url: "https://releases.hashicorp.com/nomad/{{ nomad_version }}/nomad_{{ nomad_version }}_linux_{{ nomad_arch }}.zip"
 
 # Nomad podman driver. Required on clients that run podman workloads.
-nomad_driver_podman_version: "0.6.2"
+# 0.6.5 (2026-07-13) is the latest release; it builds against Nomad 1.11.1.
+nomad_driver_podman_version: "0.6.5"
 nomad_driver_podman_url: "https://releases.hashicorp.com/nomad-driver-podman/{{ nomad_driver_podman_version }}/nomad-driver-podman_{{ nomad_driver_podman_version }}_linux_{{ nomad_arch }}.zip"
 
 # ─── Cluster topology ────────────────────────────────────────────────
