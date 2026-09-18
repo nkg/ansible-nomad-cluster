@@ -33,6 +33,9 @@ nomad_arch: amd64
 # Download URL template. The role substitutes {{ nomad_version }} +
 # {{ nomad_arch }}. Override to use a mirror or air-gapped HTTP cache.
 nomad_download_url: "https://releases.hashicorp.com/nomad/{{ nomad_version }}/nomad_{{ nomad_version }}_linux_{{ nomad_arch }}.zip"
+# Fetched by get_url, which picks the line matching the download URL's
+# basename — so one URL covers every architecture.
+nomad_checksum_url: "https://releases.hashicorp.com/nomad/{{ nomad_version }}/nomad_{{ nomad_version }}_SHA256SUMS"
 
 # Nomad podman driver. Required on clients that run podman workloads.
 # 0.6.5 (2026-07-13) is the latest release; it builds against Nomad 1.11.1
