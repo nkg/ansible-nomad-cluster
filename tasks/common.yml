@@ -65,18 +65,32 @@
     or nomad_version not in (nomad_installed_version.stdout | default(''))
   block:
     - name: Download nomad release zip
+      # Checksummed for the same reason as the podman driver: this is an
+      # executable fetched over the network onto hosts that run
+      # untrusted CI.
       ansible.builtin.get_url:
         url: "{{ nomad_download_url }}"
         dest: "/tmp/nomad-{{ nomad_version }}.zip"
+        checksum: "sha256:{{ nomad_checksum_url }}"
         mode: "0644"
 
     - name: Extract nomad binary into place
+      # No `creates:`. Unlike the podman driver this guard works —
+      # `nomad version` exits 0 and prints the version — so the block
+      # correctly skips on a converged host and there is no visible
+      # churn. But `creates:` pointing at the binary being replaced made
+      # the one case the guard exists for, an upgrade, a silent no-op:
+      # raising nomad_version downloaded a zip, skipped the extract and
+      # deleted the zip again.
       ansible.builtin.unarchive:
         src: "/tmp/nomad-{{ nomad_version }}.zip"
         dest: "{{ nomad_install_dir }}"
         remote_src: true
-        creates: "{{ nomad_install_dir }}/nomad"
         mode: "0755"
+      # Replacing the binary under a running agent does nothing until it
+      # restarts. The systemd unit below notifies this too; a handler
+      # runs once however many tasks notify it.
+      notify: Restart nomad
 
     - name: Set nomad binary permissions
       ansible.builtin.file:

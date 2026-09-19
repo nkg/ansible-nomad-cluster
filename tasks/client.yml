@@ -1,33 +1,76 @@
 ---
 # Client-specific configuration. Runs after common.yml.
 
-- name: Check installed nomad-driver-podman version (if any)
-  ansible.builtin.command: "{{ nomad_plugin_dir }}/nomad-driver-podman -version"
-  register: nomad_podman_driver_version
-  changed_when: false
+# ─── nomad-driver-podman ────────────────────────────────────────────
+#
+# The version is tracked in a marker file beside the binary, because the
+# binary cannot be asked. It is a go-plugin and refuses to run:
+#
+#   $ /opt/nomad/plugins/nomad-driver-podman -version
+#   This binary is a plugin. These are not meant to be executed directly.
+#   ...
+#   $ echo $?
+#   1
+#
+# So the old `-version` probe exited 1 on every version there has ever
+# been, the install block's `when` was true on every run, and — because
+# the unarchive below used to carry `creates:` pointing at the binary it
+# was supposed to replace — the download was fetched and deleted again
+# every converge while the binary was never touched. Three `changed`
+# tasks per client per run, ~36 MB pulled from releases.hashicorp.com
+# each time, and `nomad_driver_podman_version` could not actually move
+# the installed version: raising it re-ran the same no-op.
+
+- name: Read the installed nomad-driver-podman version
+  ansible.builtin.slurp:
+    src: "{{ nomad_plugin_dir }}/.nomad-driver-podman.version"
+  register: nomad_podman_driver_marker
+  # Absent on a fresh host, and on any host installed before this role
+  # started writing it. Both mean "install".
   failed_when: false
   check_mode: false
 
 - name: Install nomad-driver-podman
   when: >-
-    nomad_podman_driver_version.rc != 0
-    or nomad_driver_podman_version not in (nomad_podman_driver_version.stdout | default(''))
+    (nomad_podman_driver_marker.content | default('') | b64decode | trim)
+    != (nomad_driver_podman_version | string)
   block:
     - name: Download nomad-driver-podman release zip
+      # Checksummed against HashiCorp's published SHA256SUMS rather than
+      # trusted by URL: this lands an executable on hosts that run
+      # untrusted CI, and it also makes a truncated download fail here
+      # instead of unpacking into the plugin dir.
       ansible.builtin.get_url:
         url: "{{ nomad_driver_podman_url }}"
         dest: "/tmp/nomad-driver-podman-{{ nomad_driver_podman_version }}.zip"
+        checksum: "sha256:{{ nomad_driver_podman_checksum_url }}"
         mode: "0644"
 
     - name: Extract podman driver binary into plugin dir
+      # No `creates:`. That is what made an upgrade impossible — the
+      # guard exists to decide whether to act, and a second guard here
+      # that only ever says "the file is present" cancels it.
       ansible.builtin.unarchive:
         src: "/tmp/nomad-driver-podman-{{ nomad_driver_podman_version }}.zip"
         dest: "{{ nomad_plugin_dir }}"
         remote_src: true
-        creates: "{{ nomad_plugin_dir }}/nomad-driver-podman"
         owner: "{{ nomad_user }}"
         group: "{{ nomad_group }}"
         mode: "0755"
+      # Nomad loads plugins at agent start, so replacing the binary
+      # underneath a running agent changes nothing until it restarts.
+      notify: Restart nomad
+
+    - name: Record the installed version
+      # Last, and only once the unarchive succeeded: a marker written
+      # ahead of the thing it describes would make a failed install look
+      # complete on the next run.
+      ansible.builtin.copy:
+        content: "{{ nomad_driver_podman_version }}\n"
+        dest: "{{ nomad_plugin_dir }}/.nomad-driver-podman.version"
+        owner: "{{ nomad_user }}"
+        group: "{{ nomad_group }}"
+        mode: "0644"
 
     - name: Clean up downloaded zip
       ansible.builtin.file:

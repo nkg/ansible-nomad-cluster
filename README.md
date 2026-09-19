@@ -104,7 +104,9 @@ ones you'll typically set per deployment:
 | `nomad_server_bootstrap_expect` | `3` | Number of servers before the cluster elects a leader. |
 | `nomad_datacenter` | `dc1` | Logical DC name. Single-DC fleets keep the default. |
 | `nomad_version` | `2.0.5` | Pinned Nomad version. Skipped if `/usr/local/bin/nomad -v` already matches. Must equal the version baked into the `nomad-client` LXC image — a lower value here **downgrades** it. |
-| `nomad_driver_podman_version` | `0.6.5` | Pinned podman driver version. |
+| `nomad_driver_podman_version` | `0.6.2` | Pinned podman driver version. Changing it now upgrades the installed binary and restarts the agent; before the marker-file fix it did nothing. |
+| `nomad_checksum_url` | HashiCorp `SHA256SUMS` for the pinned Nomad version | Verified by `get_url`. |
+| `nomad_driver_podman_checksum_url` | HashiCorp `SHA256SUMS` for the pinned version | Verified by `get_url` against the download URL's basename, so one URL covers every architecture. |
 | `nomad_advertise_addr` | `ansible_default_ipv4.address` | Address other nodes use to reach this one. Set explicitly on multi-NIC hosts. |
 | `nomad_podman_socket` | `unix:///run/podman/podman.sock` | Where the podman driver finds the podman API. |
 
